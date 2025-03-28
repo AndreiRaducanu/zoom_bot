@@ -35,7 +35,12 @@ class ZoomBot:
             self.chrome_options.add_argument("--headless")  # Run in headless mode
 
         logger.info("Initiliazing chrome driver..")
-        self.driver = webdriver.Chrome(options=self.chrome_options)
+        try:
+            self.driver = webdriver.Chrome(options=self.chrome_options)
+            logger.info("Chrome driver initialized successfully.")
+        except Exception as e:
+            logger.error(f"Failed to initialize Chrome driver: {e}")
+            raise
 
     def safe_find_element(self, by, value, timeout=5):
         """Finds an element and returns it, or None if not found."""

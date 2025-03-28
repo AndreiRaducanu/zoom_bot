@@ -21,23 +21,29 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.12.3  # Specify your Python version here
-
-    # Step 3: Install Poetry
+    
+    
+    # Step 4: Install Poetry using pipx
     - name: Set up Poetry
       run: |
-        python3 -m venv $VENV_PATH
-        $VENV_PATH/bin/pip install -U pip setuptools
-        $VENV_PATH/bin/pip install poetry
-        source $VENV_PATH/bin/activate
-        poetry install
+        pip install poetry \
+        && poetry config virtualenvs.create false 
       env:
         VENV_PATH: ${{ github.workspace }}/.venv
-    # Step 4: Install dependencies with Poetry
+      working-directory: zoom_bot
+    
+    # Step 5: Install dependencies with Poetry
     - name: Install dependencies
       run: |
-        poetry install  
-    # Step 5: Run the tests with pytest
+        poetry install
+        sudo apt-get update
+        sudo apt-get install -y chromium-browser chromium-chromedriver
+        echo "/usr/lib/chromium-browser/chromedriver" > /usr/bin/chromedriver
+
+      working-directory: zoom_bot
+
+    # Step 6: Run the tests with pytest
     - name: Run E2E Tests
       run: |
         poetry run pytest tests/e2e/test_css_selectors.py
-      working-directory: zoom_bot/zoom_bot
+      working-directory: zoom_bot
