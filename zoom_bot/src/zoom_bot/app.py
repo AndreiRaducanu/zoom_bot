@@ -6,6 +6,15 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 import time
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()]  # Ensure logs print to console
+)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO) 
 
 
 class ZoomBot:
@@ -15,7 +24,6 @@ class ZoomBot:
         self.username = username
         self.cooldown = cooldown
 
-        # Set up Chrome options
         self.chrome_options = webdriver.ChromeOptions()
         self.chrome_options.add_argument("--start-maximized")
         self.chrome_options.add_argument("--disable-infobars")
@@ -23,19 +31,22 @@ class ZoomBot:
         self.chrome_options.add_argument("--no-sandbox")
 
         if headless:
+            logger.info("Running in headless mode..")
             self.chrome_options.add_argument("--headless")  # Run in headless mode
 
-        # Initialize WebDriver
+        logger.info("Initiliazing chrome driver..")
         self.driver = webdriver.Chrome(options=self.chrome_options)
 
     def safe_find_element(self, by, value, timeout=5):
         """Finds an element and returns it, or None if not found."""
+        logger.info(f"Finding element by {str(by)}={value}..")
         try:
             return WebDriverWait(self.driver, timeout).until(EC.presence_of_element_located((by, value)))
         except (NoSuchElementException, TimeoutException):
             return None
     
     def safe_find_elements(self, by, value, timeout=5):
+        logger.info(f"Finding all elements by {str(by)}={value}..")
         """Finds elements and returns them, or an empty list if not found."""
         try:
             return WebDriverWait(self.driver, timeout).until(EC.presence_of_all_elements_located((by, value)))
@@ -43,13 +54,7 @@ class ZoomBot:
             return []
     
     def list_all_span_text(self):
-        """Lists all span texts on the page."""
-        print("Listing all span texts...")
-
-        # Get all <span> elements on the page
         spans = self.safe_find_elements(By.TAG_NAME, "span")
-
-        # Print the text of each <span> element
         for span in spans:
             print(span.text)
 
@@ -57,6 +62,7 @@ class ZoomBot:
         """Finds an element and clicks it if present."""
         element = self.safe_find_element(by, value)
         if element:
+            logger.info(f"Clicking element found by {str(by)}={value}..")
             element.click()
             time.sleep(self.cooldown)  # Avoid accidental rate limiting
             return True
@@ -66,26 +72,32 @@ class ZoomBot:
         """Finds an element and sends keys if present."""
         element = self.safe_find_element(by, value)
         if element:
+            logger.info(f"Sending input {keys} to element found by {str(by)}={value}..")
             element.clear()
             element.send_keys(keys)
             return True
         return False
 
-    def join_meeting(self):
-        """Joins a Zoom meeting using the web client."""
-        print(f"Joining Zoom Meeting {self.meeting_id} as {self.username}...")
+    def _check_valid_page(self):
+        logger.info("Checking if page loaded properly..")
+        return not self.safe_find_element(By.CLASS_NAME, 'error-message')
 
-        # Open Zoom web client
+    def join_meeting(self):
+        logger.info(f"Joining Zoom Meeting {self.meeting_id} as {self.username}..")
         self.driver.get(f"https://zoom.us/wc/join/{self.meeting_id}")
         time.sleep(1)  # Allow page to load
 
-        # Handle cookie popups if present
+        logger.info("Removing cookie pop-ups..")
         self.safe_click(By.ID, "onetrust-reject-all-handler")
 
+        self._check_valid_page()
+
         # Accept terms if present
+        logger.info("Accepting terms and conditions..")
         self.safe_click(By.ID, "wc_agree1")
 
         # Continue without mic/camera
+        logger.info("Skip pass mic & camera..")
         self.safe_click(By.CLASS_NAME, "continue-without-mic-camera")
         self.safe_click(By.CLASS_NAME, "continue-without-mic-camera")  # Might need a second click
 
@@ -101,13 +113,13 @@ class ZoomBot:
             raise ValueError("Wrong password")
         if self.safe_find_element(By.ID, "error-for-name"):
             raise ValueError("Name too long")
+        logger.info("Successfully joined the meeting..")
 
-        print("Successfully joined the meeting!")
-    
-        counter_element = self.driver.find_element(By.CLASS_NAME, "footer-button__number-counter")
-        counter_value = counter_element.text
-        print(counter_value)  # Output: "2"
-
+        while True:
+            time.sleep(3)
+            if self.is_time_to_disconnect():
+                logger.info("Time to disconnect..")
+                break
 
     def close(self):
         """Closes the browser session."""
@@ -117,6 +129,20 @@ class ZoomBot:
     def __del__(self):
         """Ensure the WebDriver quits when the instance is deleted."""
         self.close()
+    
+    def get_number_of_participants(self) -> int:
+        parent_element = self.safe_find_element(By.CLASS_NAME, 'footer-button__number-counter')
+        children_element = parent_element.find_elements(By.XPATH, '*')
+        try:
+            return int(children_element[0].get_attribute('textContent'))
+        except Exception as e:
+            print(f"Unable to get number of participats {e}")
+    
+    def is_time_to_disconnect(self):
+        try:
+            return(self.get_number_of_participants() <= 4)
+        except Exception as e:
+            logger.info(f"Unable to determine if it's time to disconnect {e}..")
 
 
 # === Example Usage ===
@@ -124,7 +150,7 @@ if __name__ == "__main__":
     meeting_id = os.environ.get("ZOOM_MEETING_ID")
     meeintg_password = os.environ.get("ZOOM_MEETING_PASSWORD")
     username = os.environ.get("ZOOM_USERNAME")
-    bot = ZoomBot(meeting_id="87452716996", password="5FCATQwjgTUYPp5frKblFiQbgqCEzy", username="Impostor", cooldown=1, headless=False)
+    bot = ZoomBot(meeting_id=meeting_id, password=meeintg_password, username=username, cooldown=1, headless=False)
     try:
         bot.join_meeting()
     except Exception as e:
