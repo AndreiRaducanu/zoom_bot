@@ -10,7 +10,8 @@ requires-python = ">=3.12"
 dependencies = [
     "selenium (>=4.30.0,<5.0.0)",
     "undetected-chromedriver (>=3.5.5,<4.0.0)",
-    "setuptools (>=78.0.2,<79.0.0)"
+    "setuptools (>=78.0.2,<79.0.0)",
+    "pytest (>=8.3.5,<9.0.0)"
 ]
 
 [tool.poetry]
