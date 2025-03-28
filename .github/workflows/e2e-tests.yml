@@ -23,10 +23,13 @@ jobs:
         python-version: 3.12.3  # Specify your Python version here
 
     # Step 3: Install Poetry
-    - name: Install Poetry
+    - name: Set up Poetry
       run: |
-        curl -sSL https://install.python-poetry.org | python3 -
-        echo "::add-path::$(poetry config --path)"  
+        python3 -m venv $VENV_PATH
+        $VENV_PATH/bin/pip install -U pip setuptools
+        $VENV_PATH/bin/pip install poetry
+      env:
+        VENV_PATH: ${{ github.workspace }}/.venv
     # Step 4: Install dependencies with Poetry
     - name: Install dependencies
       run: |
