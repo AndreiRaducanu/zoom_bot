@@ -1,0 +1,36 @@
+name: Run E2E Tests
+
+on:
+  schedule:
+    # Run every 12 hours
+    - cron: "0 */12 * * *"  # Cron syntax for every 12 hours
+
+jobs:
+  test:
+    runs-on: ubuntu-latest  # Use an Ubuntu runner
+
+    steps:
+    # Step 1: Checkout the repository
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    # Step 2: Set up Python
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.12.3  # Specify your Python version here
+
+    # Step 3: Install Poetry
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "::add-path::$(poetry config --path)"  
+    # Step 4: Install dependencies with Poetry
+    - name: Install dependencies
+      run: |
+        poetry install  
+    # Step 5: Run the tests with pytest
+    - name: Run E2E Tests
+      run: |
+        poetry run pytest tests/e2e/test_css_selectors.py
+      working-directory: zoom_bot/zoom_bot
