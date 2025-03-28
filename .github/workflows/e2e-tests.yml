@@ -5,6 +5,8 @@ on:
     # Run every 12 hours
     - cron: "0 */12 * * *"  # Cron syntax for every 12 hours
 
+  workflow_dispatch:
+
 jobs:
   test:
     runs-on: ubuntu-latest  # Use an Ubuntu runner
