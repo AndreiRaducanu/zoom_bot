@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y \
     wget \
     unzip \
     gnupg \
-    # Chrome dependencies
     libglib2.0-0 \
     libnss3 \
     libatk1.0-0 \
