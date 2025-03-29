@@ -21,7 +21,6 @@ jobs:
         gnupg \
         python3 \
         python3-pip \
-        # Chrome dependencies
         libglib2.0-0 \
         libnss3 \
         libatk1.0-0 \
