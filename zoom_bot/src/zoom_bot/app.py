@@ -126,6 +126,7 @@ class ZoomBot:
             raise ValueError("Name too long")
         logger.info("Successfully joined the meeting..")
 
+        time.sleep(300) # Wait 5min after joining before user count
         while True:
             time.sleep(3)
             if self.is_time_to_disconnect():
