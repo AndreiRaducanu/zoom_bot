@@ -85,8 +85,17 @@ class ZoomBot:
         return not self.safe_find_element(By.CLASS_NAME, 'error-message')
 
     def join_meeting(self):
-        logger.info(f"Joining Zoom Meeting {self.meeting_id} as {self.username}..")
-        self.driver.get(f"https://zoom.us/wc/join/{self.meeting_id}")
+        if self.meeting_id and self.username and self.password:
+            logger.info(f"Joining Zoom Meeting {self.meeting_id} as {self.username}..")
+            self.driver.get(f"https://zoom.us/wc/join/{self.meeting_id}")
+        else:
+            logger.error(
+                "Credentials invalid:\n"
+                f"Username: {self.username}\n"
+                f"Password: {self.password}\n"
+                f"Meeting ID: {self.meeting_id}"
+            )
+            raise ValueError("Bad credentials..")
         time.sleep(1)  # Allow page to load
 
         logger.info("Removing cookie pop-ups..")
@@ -127,10 +136,6 @@ class ZoomBot:
         """Closes the browser session."""
         print("Closing Zoom bot...")
         self.driver.quit()
-
-    def __del__(self):
-        """Ensure the WebDriver quits when the instance is deleted."""
-        self.close()
     
     def get_number_of_participants(self) -> int:
         parent_element = self.safe_find_element(By.CLASS_NAME, 'footer-button__number-counter')
@@ -152,7 +157,7 @@ if __name__ == "__main__":
     meeting_id = os.environ.get("ZOOM_MEETING_ID")
     meeintg_password = os.environ.get("ZOOM_MEETING_PASSWORD")
     username = os.environ.get("ZOOM_USERNAME")
-    bot = ZoomBot(meeting_id=meeting_id, password=meeintg_password, username=username, cooldown=1, headless=False)
+    bot = ZoomBot(meeting_id=meeting_id, password=meeintg_password, username=username, cooldown=1)
     try:
         bot.join_meeting()
     except Exception as e:

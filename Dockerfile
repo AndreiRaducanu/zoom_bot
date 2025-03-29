@@ -48,5 +48,7 @@ WORKDIR /app
 
 COPY . /app
 
-# When container starts, just run bash
-CMD ["/bin/bash"]
+RUN cd zoom_bot && poetry install --no-interaction --no-ansi
+
+
+CMD ["sh", "-c", "cd zoom_bot && poetry run python src/zoom_bot/app.py"]
