@@ -2,48 +2,74 @@ name: Run E2E Tests
 
 on:
   schedule:
-    # Run every 12 hours
-    - cron: "0 */12 * * *"  # Cron syntax for every 12 hours
-
+    - cron: "0 */12 * * *"  # 12h
   workflow_dispatch:
 
 jobs:
   test:
-    runs-on: ubuntu-latest  # Use an Ubuntu runner
+    runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the repository
     - name: Checkout code
       uses: actions/checkout@v2
 
-    # Step 2: Set up Python
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.12.3  # Specify your Python version here
+        python-version: 3.12.3 
     
+    - name: Install dependencies
+      run: |
+        apt-get update && apt-get install -y \
+        wget \
+        unzip \
+        gnupg \
+        # Chrome dependencies
+        libglib2.0-0 \
+        libnss3 \
+        libatk1.0-0 \
+        libatk-bridge2.0-0 \
+        libcups2 \
+        libdrm2 \
+        libxkbcommon0 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxfixes3 \
+        libxrandr2 \
+        libgbm1 \
+        libasound2 \
+        libpango-1.0-0 \
+        libcairo2 \
+        && rm -rf /var/lib/apt/lists/*
+      
+    - name: Download and install Chrome
+      run: |
+        wget https://storage.googleapis.com/chrome-for-testing-public/134.0.6998.165/linux64/chrome-linux64.zip && \
+        unzip chrome-linux64.zip -d /opt && \
+        rm chrome-linux64.zip && \
+        ln -s /opt/chrome-linux64/chrome /usr/local/bin/chrome
     
-    # Step 4: Install Poetry using pipx
-    - name: Set up Poetry
+    - name: Download and install ChromeDriver
+      run: |
+        wget https://storage.googleapis.com/chrome-for-testing-public/134.0.6998.165/linux64/chromedriver-linux64.zip && \
+        unzip chromedriver-linux64.zip -d /opt && \
+        rm chromedriver-linux64.zip && \
+        ln -s /opt/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
+
+    - name: Verify installations
+      run: chrome --version && chromedriver --version
+        
+    - name: Install Poetry
       run: |
         pip install poetry \
         && poetry config virtualenvs.create false 
-      env:
-        VENV_PATH: ${{ github.workspace }}/.venv
-      working-directory: zoom_bot
     
-    # Step 5: Install dependencies with Poetry
-    - name: Install dependencies
+    - name: Install poetry dependencies
       run: |
         poetry install
-        sudo apt-get update
-        sudo apt-get install -y chromium-browser chromium-chromedriver
-        echo "/usr/lib/chromium-browser/chromedriver" > /usr/bin/chromedriver
-
       working-directory: zoom_bot
 
-    # Step 6: Run the tests with pytest
     - name: Run E2E Tests
       run: |
-        poetry run pytest tests/e2e/test_css_selectors.py
+        poetry run pytest src/zoom_bot/test.py
       working-directory: zoom_bot

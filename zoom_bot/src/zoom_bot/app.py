@@ -1,7 +1,6 @@
 import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
@@ -18,21 +17,19 @@ logger.setLevel(logging.INFO)
 
 
 class ZoomBot:
-    def __init__(self, meeting_id, password, username, cooldown=1, headless=False):
+    def __init__(self, meeting_id, password, username, cooldown=1):
         self.meeting_id = meeting_id
         self.password = password
         self.username = username
         self.cooldown = cooldown
 
         self.chrome_options = webdriver.ChromeOptions()
-        self.chrome_options.add_argument("--start-maximized")
+        self.chrome_options.add_argument("--headless")  # mandatory
+        self.chrome_options.add_argument("--no-sandbox") # mandatory
+        self.chrome_options.add_argument('--disable-gpu')
         self.chrome_options.add_argument("--disable-infobars")
         self.chrome_options.add_argument("--disable-dev-shm-usage")
-        self.chrome_options.add_argument("--no-sandbox")
-
-        if headless:
-            logger.info("Running in headless mode..")
-            self.chrome_options.add_argument("--headless")  # Run in headless mode
+        
 
         logger.info("Initiliazing chrome driver..")
         try:
