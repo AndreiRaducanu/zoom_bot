@@ -7,7 +7,9 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Keep this as the host, but use a container
+
+    container: python:3.12-slim  
 
     steps:
     - name: Checkout code
@@ -15,12 +17,10 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt-get update && sudo apt-get install -y \
+        apt-get update && apt-get install -y \
         wget \
         unzip \
         gnupg \
-        python3 \
-        python3-pip \
         libglib2.0-0 \
         libnss3 \
         libatk1.0-0 \
@@ -57,7 +57,7 @@ jobs:
         
     - name: Install Poetry
       run: |
-        pip3 install poetry \
+        pip install poetry \
         && poetry config virtualenvs.create false 
     
     - name: Install poetry dependencies
