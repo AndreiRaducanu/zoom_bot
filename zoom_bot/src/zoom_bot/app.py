@@ -3,14 +3,14 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
 import time
 import logging
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()]  # Ensure logs print to console
+    handlers=[logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO) 
@@ -29,6 +29,14 @@ class ZoomBot:
         self.chrome_options.add_argument('--disable-gpu')
         self.chrome_options.add_argument("--disable-infobars")
         self.chrome_options.add_argument("--disable-dev-shm-usage")
+        # Settings for mic / video
+        self.chrome_options.add_argument("--use-fake-ui-for-media-stream")  
+        self.chrome_options.add_argument("--use-fake-device-for-media-stream") 
+        prefs = {
+            "profile.default_content_setting_values.media_stream_camera": 1,
+            "profile.default_content_setting_values.media_stream_mic": 1
+        }
+        self.chrome_options.add_experimental_option("prefs", prefs)
         
 
         logger.info("Initiliazing chrome driver..")
@@ -40,20 +48,26 @@ class ZoomBot:
             raise
 
     def safe_find_element(self, by, value, timeout=5):
-        """Finds an element and returns it, or None if not found."""
-        logger.info(f"Finding element by {str(by)}={value}..")
         try:
-            return WebDriverWait(self.driver, timeout).until(EC.presence_of_element_located((by, value)))
-        except (NoSuchElementException, TimeoutException):
+            element = WebDriverWait(self.driver, timeout).until(EC.presence_of_element_located((by, value)))
+            logger.info(f"Successfully found element by {str(by)}={value}..")
+            return element
+        except (NoSuchElementException, TimeoutException, WebDriverException):
             return None
     
     def safe_find_elements(self, by, value, timeout=5):
         logger.info(f"Finding all elements by {str(by)}={value}..")
-        """Finds elements and returns them, or an empty list if not found."""
         try:
-            return WebDriverWait(self.driver, timeout).until(EC.presence_of_all_elements_located((by, value)))
+            elements = WebDriverWait(self.driver, timeout).until(EC.presence_of_all_elements_located((by, value)))
+            if elements:
+                logger.info(f"Found {len(elements)} elements by {str(by)}={value}.")
+            else:
+                logger.info(f"No elements found by {str(by)}={value}.")
+            return elements
         except TimeoutException:
+            logger.info(f"Did not find elements by {str(by)}={value}.")
             return []
+
     
     def list_all_span_text(self):
         spans = self.safe_find_elements(By.TAG_NAME, "span")
@@ -62,6 +76,7 @@ class ZoomBot:
 
     def safe_click(self, by, value):
         """Finds an element and clicks it if present."""
+        time.sleep(4) # delay every click
         element = self.safe_find_element(by, value)
         if element:
             logger.info(f"Clicking element found by {str(by)}={value}..")
@@ -96,30 +111,30 @@ class ZoomBot:
                 f"Meeting ID: {self.meeting_id}"
             )
             raise ValueError("Bad credentials..")
-        time.sleep(1)  # Allow page to load
+        time.sleep(2)  # Allow page to load
 
         logger.info("Removing cookie pop-ups..")
         self.safe_click(By.ID, "onetrust-reject-all-handler")
 
-        self._check_valid_page()
+        if not self._check_valid_page():
+            raise ValueError("Invalid meeting ID")
+        logger.info("Valid meeting..")
 
-        # Accept terms if present
         logger.info("Accepting terms and conditions..")
         self.safe_click(By.ID, "wc_agree1")
 
-        # Continue without mic/camera
-        logger.info("Skip pass mic & camera..")
-        self.safe_click(By.CLASS_NAME, "continue-without-mic-camera")
-        self.safe_click(By.CLASS_NAME, "continue-without-mic-camera")  # Might need a second click
+        time.sleep(10)
 
-        # Enter meeting credentials
+        logger.info("Disabling mic and camera..")
+        if not self._disable_mic_and_camera():
+            raise RuntimeError("Failed to disable mic or camera..")
+
         self.safe_send_keys(By.ID, "input-for-pwd", self.password)
         self.safe_send_keys(By.ID, "input-for-name", self.username)
 
-        # Click join button
+        logger.info("Joining meeting..")
         self.safe_click(By.CSS_SELECTOR, "button.preview-join-button")
 
-        # Check for errors
         if self.safe_find_element(By.ID, "error-for-pwd"):
             raise ValueError("Wrong password")
         if self.safe_find_element(By.ID, "error-for-name"):
@@ -127,33 +142,57 @@ class ZoomBot:
         logger.info("Successfully joined the meeting..")
 
         time.sleep(300) # Wait 5min after joining before user count
-        while True:
-            time.sleep(3)
+        self.check_and_disconnect()
+    
+    def check_and_disconnect(self):
+            time.sleep(30)
             if self.is_time_to_disconnect():
                 logger.info("Time to disconnect..")
-                break
+                # Need to hover to interact with those
+                # self.safe_click(By.CSS_SELECTOR, '[aria-label="Leave"]')
+                # self.safe_click(By.CLASS_NAME, "leave-meeting-options__btn--default")
+            else:
+                self.check_and_disconnect()
+
+    def _disable_mic_and_camera(self):
+        self.safe_click(By.ID, "preview-video-control-button"),
+        self.safe_click(By.ID, "preview-audio-control-button")
+        return all([
+            self.safe_find_element(By.CSS_SELECTOR, '[aria-label="Start Video"]'),
+            self.safe_find_element(By.CSS_SELECTOR, '[aria-label="Unmute"]')
+        ])
+        
 
     def close(self):
         """Closes the browser session."""
         print("Closing Zoom bot...")
         self.driver.quit()
-    
+    Invalid meeting ID..
     def get_number_of_participants(self) -> int:
         parent_element = self.safe_find_element(By.CLASS_NAME, 'footer-button__number-counter')
         children_element = parent_element.find_elements(By.XPATH, '*')
         try:
             return int(children_element[0].get_attribute('textContent'))
         except Exception as e:
-            print(f"Unable to get number of participats {e}")
-    
+            logger.error(f"Unable to get number of participats {e}")
+
+    def _is_meeting_ended_by_host(self):
+        end_body = self.safe_find_element(By.CLASS_NAME, "zm-modal-body-title")
+        end_message = "This meeting has been ended by host"
+        if end_body is not None and end_body.get_attribute('textContent') == end_message:
+            logger.info(end_message)
+            return True
+        
+        return False
+
     def is_time_to_disconnect(self):
         try:
-            return(self.get_number_of_participants() <= 4)
+            return(self._is_meeting_ended_by_host() or self.get_number_of_participants() <= 4)
         except Exception as e:
             logger.info(f"Unable to determine if it's time to disconnect {e}..")
+            return False
 
 
-# === Example Usage ===
 if __name__ == "__main__":
     meeting_id = os.environ.get("ZOOM_MEETING_ID")
     meeintg_password = os.environ.get("ZOOM_MEETING_PASSWORD")
