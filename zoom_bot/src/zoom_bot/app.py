@@ -167,7 +167,7 @@ class ZoomBot:
         """Closes the browser session."""
         print("Closing Zoom bot...")
         self.driver.quit()
-    Invalid meeting ID..
+
     def get_number_of_participants(self) -> int:
         parent_element = self.safe_find_element(By.CLASS_NAME, 'footer-button__number-counter')
         children_element = parent_element.find_elements(By.XPATH, '*')
