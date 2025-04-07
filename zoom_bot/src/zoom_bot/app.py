@@ -32,7 +32,7 @@ def main():
     try:
         bot.join_meeting()
     except Exception as e:
-        print(f"[ERROR] Bot failed: {e}")
+        logger.error(f"Bot failed: {e}")
     finally:
         bot.close()
 
