@@ -87,10 +87,11 @@ class ZoomBot:
             raise ValueError("Name too long")
         logger.info("Successfully joined the meeting..")
 
+        time.sleep(300)
         self.check_and_disconnect()
 
     def check_and_disconnect(self):
-        time.sleep(300)
+        time.sleep(30)
         if self.is_time_to_disconnect():
             logger.info("Time to disconnect..")
         else:
