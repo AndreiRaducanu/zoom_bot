@@ -28,7 +28,7 @@ class ZoomBotManager:
             meeting_id=meeting_id,
             password=password,
             username=username,
-            cooldown=random.uniform(3, 7)  # Random cooldown to avoid detection
+            cooldown=random.uniform(5, 11)  # Random cooldown to avoid detection
         )
         self.bots.append(bot)
         self.bot_status[username] = "Ready"
