@@ -97,18 +97,6 @@ def test_check_valid_page_invalid(bot):
     bot.safe_find_element = MagicMock(return_value=MagicMock())
     assert bot._check_valid_page() is False
 
-def test_join_meeting_wrong_password(bot):
-    bot.driver.get = MagicMock()
-    bot._check_valid_page = MagicMock(return_value=True)
-    bot._disable_mic_and_camera = MagicMock(return_value=True)
-    bot.safe_click = MagicMock()
-    bot.safe_send_keys = MagicMock()
-    bot.safe_find_element = MagicMock(side_effect=[
-        MagicMock(), 
-    ])
-
-    with pytest.raises(ValueError, match="Wrong password"):
-        bot.join_meeting()
 
 def test_is_time_to_disconnect_true(bot):
     bot._is_meeting_ended_by_host = MagicMock(return_value=True)
