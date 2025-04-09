@@ -1,4 +1,5 @@
-import os
+from threading import Lock
+from typing import Optional
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,18 +12,27 @@ logger = logging.getLogger(__name__)
 
 
 class ZoomBot:
+    _driver_lock = Lock()
+
     def __init__(
         self,
         meeting_id: int,
         password: str,
         username: str,
-        cooldown: int = 5
+        cooldown: int = 5,
+        driver: Optional[webdriver.Chrome] = None 
     ):
         self.meeting_id = meeting_id
         self.password = password
         self.username = username
         self.cooldown = cooldown
+        self._driver = driver
+        self._should_run = True
 
+        if not self._driver:
+            self._init_driver()
+        
+    def _init_driver(self):
         self.chrome_options = webdriver.ChromeOptions()
         self.chrome_options.add_argument("--headless")  # mandatory
         self.chrome_options.add_argument("--no-sandbox") # mandatory
@@ -41,61 +51,74 @@ class ZoomBot:
 
         logger.info("Initiliazing chrome driver..")
         try:
-            self.driver = webdriver.Chrome(options=self.chrome_options)
-            logger.info("Chrome driver initialized successfully.")
+            with self._driver_lock:
+                self._driver = webdriver.Chrome(options=self.chrome_options)
+            self._driver.set_page_load_timeout(30)
+            logger.info(f"Chrome driver initialized successfully for {self.username}.")
         except Exception as e:
-            logger.error(f"Failed to initialize Chrome driver: {e}")
-            raise RuntimeError
+            logger.error(f"Failed to initialize Chrome driver for {self.username}: {e}")
+            raise RuntimeError(f"Failed to initialize Chrome driver: {e}")
+        
+
+    @property
+    def driver(self):
+        if not self._driver:
+            self._init_driver()
+        return self._driver
 
     def join_meeting(self):
         try:
             logger.info(f"Joining Zoom Meeting {self.meeting_id} as {self.username}..")
             self.driver.get(f"https://zoom.us/wc/join/{self.meeting_id}")
+        
+
+            time.sleep(self.cooldown)
+
+            logger.info("Removing cookie pop-ups..")
+            self.safe_click(By.ID, "onetrust-reject-all-handler")
+
+            if not self._check_valid_page():
+                raise ValueError("Invalid meeting ID")
+            logger.info("Valid meeting..")
+
+            logger.info("Accepting terms and conditions..")
+            self.safe_click(By.ID, "wc_agree1")
+
+            time.sleep(self.cooldown)
+
+            logger.info("Disabling mic and camera..")
+            if not self._disable_mic_and_camera():
+                raise RuntimeError("Failed to disable mic or camera..")
+
+            self.safe_send_keys(By.ID, "input-for-pwd", self.password)
+            self.safe_send_keys(By.ID, "input-for-name", self.username)
+
+            logger.info("Joining meeting..")
+            self.safe_click(By.CSS_SELECTOR, "button.preview-join-button")
+
+            if self.safe_find_element(By.ID, "error-for-pwd"):
+                raise ValueError("Wrong password")
+            if self.safe_find_element(By.ID, "error-for-name"):
+                raise ValueError("Name too long")
+            logger.info("Successfully joined the meeting..")
         except Exception as e:
             logger.error(
                 f"Unable to joing meeting: \n{e}"
             )
             self.close()
 
-        time.sleep(self.cooldown)
-
-        logger.info("Removing cookie pop-ups..")
-        self.safe_click(By.ID, "onetrust-reject-all-handler")
-
-        if not self._check_valid_page():
-            raise ValueError("Invalid meeting ID")
-        logger.info("Valid meeting..")
-
-        logger.info("Accepting terms and conditions..")
-        self.safe_click(By.ID, "wc_agree1")
-
-        time.sleep(self.cooldown)
-
-        logger.info("Disabling mic and camera..")
-        if not self._disable_mic_and_camera():
-            raise RuntimeError("Failed to disable mic or camera..")
-
-        self.safe_send_keys(By.ID, "input-for-pwd", self.password)
-        self.safe_send_keys(By.ID, "input-for-name", self.username)
-
-        logger.info("Joining meeting..")
-        self.safe_click(By.CSS_SELECTOR, "button.preview-join-button")
-
-        if self.safe_find_element(By.ID, "error-for-pwd"):
-            raise ValueError("Wrong password")
-        if self.safe_find_element(By.ID, "error-for-name"):
-            raise ValueError("Name too long")
-        logger.info("Successfully joined the meeting..")
-
         time.sleep(300)
         self.check_and_disconnect()
 
     def check_and_disconnect(self):
-        time.sleep(30)
-        if self.is_time_to_disconnect():
-            logger.info("Time to disconnect..")
-        else:
-            self.check_and_disconnect()
+        try:
+            time.sleep(30)
+            if self.is_time_to_disconnect():
+                logger.info("Time to disconnect..")
+            else:
+                self.check_and_disconnect()
+        except Exception as e:
+            logger.error(f"Disconnect check failed: {str(e)}")
 
     def is_time_to_disconnect(self):
         try:
@@ -139,18 +162,16 @@ class ZoomBot:
             return []
 
     def safe_click(self, by, value):
-        """Finds an element and clicks it if present."""
-        time.sleep(4) # delay every click
+        time.sleep(self.cooldown) 
         element = self.safe_find_element(by, value)
         if element:
             logger.info(f"Clicking element found by {str(by)}={value}..")
             element.click()
-            time.sleep(self.cooldown)  # Avoid accidental rate limiting
+            time.sleep(self.cooldown)
             return True
         return False
 
     def safe_send_keys(self, by, value, keys):
-        """Finds an element and sends keys if present."""
         element = self.safe_find_element(by, value)
         if element:
             logger.info(f"Sending input {keys} to element found by {str(by)}={value}..")
