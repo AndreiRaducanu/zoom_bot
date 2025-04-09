@@ -104,7 +104,7 @@ def test_join_meeting_wrong_password(bot):
     bot.safe_click = MagicMock()
     bot.safe_send_keys = MagicMock()
     bot.safe_find_element = MagicMock(side_effect=[
-        MagicMock(),  # error-for-pwd (not first check)
+        MagicMock(), 
     ])
 
     with pytest.raises(ValueError, match="Wrong password"):
