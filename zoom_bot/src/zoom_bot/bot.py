@@ -105,7 +105,7 @@ class ZoomBot:
             logger.error(
                 f"Unable to joing meeting: \n{e}"
             )
-            self.close()
+            raise RuntimeError(f"Unable to joing meeting: \n{e}")
 
         time.sleep(300)
         self.check_and_disconnect()
