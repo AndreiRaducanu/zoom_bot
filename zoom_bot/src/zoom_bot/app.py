@@ -13,6 +13,7 @@ logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 logger = configure_logging()
 
 env_data = dotenv_values(".env")
+logger.info(f".env contents: {env_data}")
 
 
 class ZoomBotManager:
