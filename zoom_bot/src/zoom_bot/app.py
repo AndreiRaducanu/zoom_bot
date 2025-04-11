@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import random
 import sys
 import logging
@@ -12,8 +13,9 @@ from zoom_bot.infrastructure.logging import configure_logging
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 logger = configure_logging()
 
-env_data = dotenv_values(".env")
-logger.info(f".env contents: {env_data}")
+ROOT_DIR = Path(__file__).resolve().parents[3]  
+ENV_PATH = ROOT_DIR / ".env"
+env_data = dotenv_values(ENV_PATH)
 
 
 class ZoomBotManager:
