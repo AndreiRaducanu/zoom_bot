@@ -68,22 +68,18 @@ class ZoomBotManager:
 
     def run_all(self, max_threads: int = 20):
         self.running = True
-        self.threads = []
+        logger.info(f"Starting {len(self.bots)} bots")
         
-        for i, bot in enumerate(self.bots):
+        for bot in self.bots:
             while threading.active_count() >= max_threads:
                 time.sleep(1)
-                
-            thread = threading.Thread(
-                target=self.start_bot,
-                args=(bot,),
-                name=f"ZoomBot-{bot.username}",
-                daemon=True
-            )
-            thread._username = bot.username
+            
+            thread = threading.Thread(target=self.start_bot, args=(bot,))
             thread.start()
             self.threads.append(thread)
-            time.sleep(0.5)  # Small delay between starting bots
+            logger.info(f"Started thread for {bot.username} (Threads: {threading.active_count()})")
+        
+        logger.info(f"Total threads launched: {len(self.threads)}")  # Should match bot count
     
 
     def monitor_bots(self):
@@ -130,20 +126,27 @@ def load_config() -> List[Dict]:
 def get_users(index=1, users=None) -> List[Dict]:
     if users is None:
         users = []
+        logger.info("Loading user configurations...")
 
-    prefix = f"USER{index}_"
-    name = env_data.get(f"{prefix}NAME")
-    meeting_id = env_data.get(f"{prefix}MEETING_ID")
-    password = env_data.get(f"{prefix}PASSWORD")
+    try:
+        prefix = f"USER{index}_"
+        name = env_data.get(f"{prefix}NAME")
+        meeting_id = env_data.get(f"{prefix}MEETING_ID")
+        password = env_data.get(f"{prefix}PASSWORD")
 
-    if all([name, meeting_id, password]):
+        if not all([name, meeting_id, password]):
+            logger.info(f"No more users found after index {index-1}")
+            return users
+
         users.append({
             "username": name,
             "meeting_id": meeting_id,
             "password": password
         })
+        logger.info(f"Added user {index}: {name}")
         return get_users(index + 1, users)
-    else:
+    except Exception as e:
+        logger.error(f"Error loading user config at index {index}: {str(e)}")
         return users
 
 def main():
@@ -168,6 +171,7 @@ def main():
         manager.run_all(max_threads=20)
         while any(t.is_alive() for t in manager.threads):
             time.sleep(1)
+        
             
     except KeyboardInterrupt:
         logger.info("Received interrupt signal...")
