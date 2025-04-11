@@ -13,9 +13,9 @@ from zoom_bot.infrastructure.logging import configure_logging
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 logger = configure_logging()
 
-ROOT_DIR = Path(__file__).resolve().parents[3]  
-ENV_PATH = ROOT_DIR / ".env"
-env_data = dotenv_values(ENV_PATH)
+env_path = Path("/home/ubuntu/.env")
+env_data = dotenv_values(env_path)
+logger.info((f"Loaded .env from: {env_path}"))
 
 
 class ZoomBotManager:
