@@ -148,9 +148,12 @@ def get_users(index=1, users=None) -> List[Dict]:
 
 def main():
     threading.current_thread()._username = "Main"
+    logger.info("Initializing bot manager..")
     manager = ZoomBotManager()
     
+    logger.info("Getting user info..")
     users = get_users()
+    logger.info("Add bots to manager..")
     manager.add_bots_from_config(users)
     
     monitor_thread = threading.Thread(
@@ -158,6 +161,7 @@ def main():
         name="MonitorThread",
         daemon=True
     )
+    logger.info("Starting thread..")
     monitor_thread.start()
     
     try:
