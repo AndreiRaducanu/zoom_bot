@@ -99,7 +99,7 @@ class ZoomBot:
 
     def is_time_to_disconnect(self):
         try:
-            return(self._is_meeting_ended_by_host() or self.get_number_of_participants() <= 4)
+            return(self._is_meeting_ended_by_host() or self.get_number_of_participants() <= 1)
         except Exception as e:
             logger.info(f"Unable to determine if it's time to disconnect {e}..")
             return False
